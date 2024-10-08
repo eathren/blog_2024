@@ -1,7 +1,7 @@
 ---
 publishDate: 2023-01-02T00:00:00Z
-title: 'Returning Data in Rust with Axum and SeaORM: A Guide and Common Pitfalls'
-excerpt: Axum is a wonderful web framework that suffers from incomplete documentation. This is how to actually use some parts of it that are more confusing.
+title: 'Rust, Axum,  and REST'
+excerpt: How to actually build something with Rust on the web.
 tags:
   - rust
   - axum
@@ -10,152 +10,46 @@ tags:
   - backend
 ---
 
-# Returning Data in Rust with Axum and SeaORM: A Guide and Pitfalls
+# Axum: A Fast and Efficient Framework
 
-Rust's focus on memory safety and performance makes it an increasingly popular choice for backend development.
-When working with frameworks like **Axum** and ORMs like **SeaORM**, understanding how to return data is essential for building web applications effectively.
-In this post, we'll explore how to return data using these tools, tackle common pitfalls, and discuss some best practices.
+Axum is one of the fastest web frameworks available today, designed to leverage Rust's strengths in performance and safety. [In fact, it's one of the fastest to date](https://www.techempower.com/benchmarks/#hw=ph&test=fortune&section=data-r22). Built on top of `Tower`, an HTTP client, it offers a minimalistic approach to building web applications. However, it does come with some limitations.
 
-## Setting Up Axum
+## Limitations of Axum
 
-Axum is a web framework built on **hyper**. It's known for its flexibility and powerful features,
-allowing you to easily define routes and return data.
+1. **Asynchronous Operations Only**: Since Axum is built on `Tokio`, it natively supports only asynchronous operations. Developers coming from synchronous environments may find this a learning curve.
 
-```toml
-# Cargo.toml
-[dependencies]
-axum = "0.6"
-tokio = { version = "1", features = ["full"] }
-sea-orm = { version = "1.0.1", features = ["sqlx-postgres"] }
-```
+2. **Limited Middleware Ecosystem**: Axum has a limited selection of middleware options. Handling sessions, cookies, and other common tasks often requires manual implementation or reliance on external crates.
 
-### Basic Axum Example
+3. **Manual Error Handling**: Error handling must be implemented manually, often involving custom error types and responses, which can add complexity to your application.
 
-```rust
-use axum::{routing::get, Router};
-use std::net::SocketAddr;
+4. **Unopinionated Database Integration**: Axum does not provide built-in database handling, necessitating the manual integration of an ORM (like SeaORM or Diesel) or direct SQL queries using `Sqlx`. This means more initial setup and boilerplate code.
 
-#[tokio::main]
-async fn main() {
-    // Define a route and handler
-    let app = Router::new().route("/", get(handler));
+Despite these limitations, Axum shines in its ability to deliver fine-grained, performant, async-native code.
 
-    // Start the server
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    println!("Listening on {}", addr);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
-}
+## Strengths of Axum
 
-async fn handler() -> &'static str {
-    "Hello, world!"
-}
-```
+- **Type Safety**: Axum leverages Rust's strong type system, providing compile-time checks for routing, extractors, and middleware. This feature significantly reduces runtime errors and enhances code reliability. For instance, it can verify your database connections and SQL queries at compile time, which is incredibly beneficial.
 
-In this example, `handler` simply returns a static string. But what if we want to return more complex data?
+- **Async-First Design**: Built on `Tokio`, Axum is highly performant and excels in handling concurrent requests, making it suitable for high-throughput, low-latency applications.
 
-## Returning JSON in Axum
+- **Flexible Routing**: Axum offers a flexible routing system that supports complex nested routes, path parameters, and wildcard segments. Developers can define routes using both function-based handlers and closures, providing versatility in implementation.
 
-Axum makes it simple to return JSON responses. You just need to return a `Json<T>` type.
+- **Integration with Tower**: Fully compatible with Tower’s middleware ecosystem, Axum allows developers to reuse middleware components for various tasks, such as request logging, compression, and authentication, fostering modularity and reusability across projects.
 
-```rust
-use axum::{response::Json, routing::get, Router};
-use serde::Serialize;
-use std::net::SocketAddr;
+- **Minimal Boilerplate**: The simplicity of Axum leads to a minimal amount of boilerplate code. It emphasizes handler functions that directly map to routes, streamlining the process of setting up new routes and handlers.
 
-#[derive(Serialize)]
-struct ResponseData {
-    message: String,
-}
+- **Custom Extractors**: Axum supports custom request parsing and validation through its extractor system, facilitating the handling of incoming requests with complex data, such as JSON or URL parameters.
 
-async fn json_handler() -> Json<ResponseData> {
-    Json(ResponseData {
-        message: "Hello, world!".to_string(),
-    })
-}
+- **Extensibility and Middleware Support**: Axum's middleware design is highly extensible, enabling developers to easily plug in custom middleware for tasks like authentication, rate limiting, or logging without complicating route handlers.
 
-#[tokio::main]
-async fn main() {
-    let app = Router::new().route("/", get(json_handler));
+- **Native WebSocket and SSE Support**: Axum provides built-in support for WebSocket and Server-Sent Events (SSE), allowing real-time communication capabilities without the need for additional libraries.
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    println!("Listening on {}", addr);
-    axum::Server::bind(&addr)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
-}
-```
+- **Strong Ecosystem**: Axum integrates seamlessly with other Rust crates, such as `Serde` for data serialization, `Hyper` for HTTP operations, and `Tower` for middleware, enhancing its functionality and ease of use.
 
-Now, the handler returns a JSON response with a `message` field.
+- **Community and Documentation**: Although relatively new, Axum boasts a rapidly growing community and well-structured documentation, providing practical examples and guidance for developers of all experience levels.
 
-## Integrating SeaORM with Axum
+- **Small Footprint**: Following Rust's philosophy of zero-cost abstractions, Axum maintains a small performance overhead compared to other frameworks, while still providing high-level abstractions for web applications.
 
-SeaORM is a powerful and asynchronous ORM that fits well with Axum. Let's walk through an example where we return data from a PostgreSQL database using SeaORM.
+- **Extremely Fast**: Axum's design, centered around `Tokio` and Rust’s zero-cost abstractions, positions it as one of the fastest web frameworks available, capable of handling high-throughput applications efficiently.
 
-First, make sure your `Cargo.toml` includes:
-
-```toml
-sea-orm = { version = "0.9", features = ["sqlx-postgres"] }
-```
-
-### Example: Fetching Data from the Database
-
-```rust
-use axum::{extract::Path, response::Json, routing::get, Router};
-use sea_orm::{Database, EntityTrait, QueryFilter};
-use serde::Serialize;
-use std::net::SocketAddr;
-use entity::prelude::*;
-
-#[derive(Serialize)]
-struct UserResponse {
-    id: i32,
-    email: String,
-}
-
-async fn get_user(Path(id): Path<i32>, db: DatabaseConnection) -> Json<UserResponse> {
-    let user = Users::find_by_id(id).one(&db).await.unwrap();
-
-    if let Some(user) = user {
-        Json(UserResponse {
-            id: user.id,
-            email: user.email,
-        })
-    } else {
-        Json(UserResponse {
-            id: 0,
-            email: "Not found".to_string(),
-        })
-    }
-}
-
-#[tokio::main]
-async fn main() {
-    let database_url = "postgres://username:password@localhost/db";
-    let db = Database::connect(database_url).await.unwrap();
-
-    let app = Router::new()
-        .route("/user/:id", get(get_user))
-        .layer(axum::AddExtensionLayer::new(db));
-
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-   let listener = tokio::net::TcpListener::bind("0.0.0.0:8000").await.unwrap();
-    info!("Listening on 0.0.0.0:8000");
-    axum::serve(listener, app).await.unwrap();
-}
-```
-
-In this example, we define a `get_user` function that fetches a user from the database using SeaORM and returns it as JSON.
-
-### Common Pitfalls
-
-1. **Database Connections**: Always ensure that you manage your database connections efficiently. Using a connection pool can prevent performance issues.
-2. **Error Handling**: Rust's error handling can sometimes be verbose. Consider using libraries like `thiserror` to simplify returning errors.
-3. **Lifetime Issues**: When working with complex data types, be mindful of Rust's ownership rules and lifetimes. Lifetimes can cause issues when you try to return data that doesn’t live long enough, especially in database operations.
-
-### Conclusion
-
-Returning data in Rust using Axum and SeaORM is powerful and flexible. By understanding how to structure your routes and return types, you can build fast and reliable web applications. Keep an eye out for common pitfalls like managing database connections and handling errors gracefully.
+If you're frustrated with the ecosytem, try it out. I know that after years of python code and wrestling Pydantic and buggy code, having something just _work_ was like a breath of fresh air.
