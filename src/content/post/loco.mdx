@@ -1,0 +1,46 @@
+---
+publishDate: 2023-01-02T00:00:00Z
+title: 'Loco - Ruby on Rails but with Rust'
+excerpt: Explore a framework built on top of Axum for backend / fullstack projects
+tags:
+  - rust
+  - loco
+  - axum
+  - db
+  - orm
+  - backend
+  - sea-orm
+  - sqlite
+  - postgres
+---
+
+# Loco is new. Brand new.
+
+In fact, the first post about it on r/rust is only 10 months old at the time of writing.
+
+I discovered it after standing up a new Axum/Rust project for work, and spent a week carefully selecitng the pieces of what I needed to build.
+
+First, it was the framework. Actix-web has a lot going for it, but Axum is my favorite from a purely speed and minimalist setup, and GoLang has never quite captured my heart.
+
+Next, I needed a way to store my data. I was working with graph data, but wanted the reliability of Postgres to go along with a query language I won't bother talking about here.
+
+I needed a way to talk with my db, and while I've used sqlx in the past, I didn't want to deal with writing pure SQL strings and dealing with input validation, and took a look at the ORM's available. SeaORM seemed to be well received, so I looked at that.
+
+So I ended up with Rust, Axum, Postgres, and SeaORM. I spent a few days going through docs and putting all the pieces together, and finally had a working foundation for the project.
+
+The following monday I discovered [Loco](https://loco.rs/).
+
+It not only used precisely the stack I so carefully put together, but came with it's own cli that generated the entire stack with a full or backend only setup, and included authentication endpoints and smtp configs to boot. And not to mention, the code was _clean_.
+
+Nearly a year of effort had gone into it, the migrations were easy to understand, and it had great generators to do the hard parts of making migration files that SeaORM relies on for creating it's underlying entities.
+
+You can even create a new project in only a few inputs.
+
+```sh
+cargo install loco-cli
+cargo install sea-orm-cli
+loco new
+cargo loco generate scaffold post title:string content:text
+```
+
+It's new and still in development, but if you are solo or on a small team, definitely take a look.
