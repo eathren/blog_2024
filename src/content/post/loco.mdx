@@ -18,7 +18,7 @@ tags:
 
 In fact, the first post about it on r/rust is only 10 months old at the time of writing.
 
-I discovered it after standing up a new Axum/Rust project for work, and spent a week carefully selecitng the pieces of what I needed to build.
+I discovered it after standing up a new Axum/Rust project for work, and spent a week carefully selecting the pieces of what I needed to build.
 
 First, it was the framework. Actix-web has a lot going for it, but Axum is my favorite from a purely speed and minimalist setup, and GoLang has never quite captured my heart.
 
@@ -28,19 +28,82 @@ I needed a way to talk with my db, and while I've used sqlx in the past, I didn'
 
 So I ended up with Rust, Axum, Postgres, and SeaORM. I spent a few days going through docs and putting all the pieces together, and finally had a working foundation for the project.
 
-The following monday I discovered [Loco](https://loco.rs/).
+The following Monday I discovered [Loco](https://loco.rs/).
 
-It not only used precisely the stack I so carefully put together, but came with it's own cli that generated the entire stack with a full or backend only setup, and included authentication endpoints and smtp configs to boot. And not to mention, the code was _clean_.
+It not only used precisely the stack I so carefully put together, but came with its own CLI that generated the entire stack with a full or backend-only setup, and included authentication endpoints and SMTP configs to boot. And not to mention, the code was _clean_.
 
-Nearly a year of effort had gone into it, the migrations were easy to understand, and it had great generators to do the hard parts of making migration files that SeaORM relies on for creating it's underlying entities.
+Nearly a year of effort had gone into it, the migrations were easy to understand, and it had great generators to do the hard parts of making migration files that SeaORM relies on for creating its underlying entities.
 
-You can even create a new project in only a few inputs.
+On the fence because it's still in development? Here's a bit more of what you can do...
 
-```sh
+### Key Features
+
+#### 1. **Rapid Application Development**
+
+Loco enables developers to generate application scaffolding effortlessly. For instance, creating a blog backend can be accomplished with a few simple commands:
+
+```bash
 cargo install loco-cli
-cargo install sea-orm-cli
-loco new
-cargo loco generate scaffold post title:string content:text
+cargo install sea-orm-cli # Only if database support is needed
+loco new myapp
 ```
 
-It's new and still in development, but if you are solo or on a small team, definitely take a look.
+This setup generates a new application structure, including user authentication and database configuration.
+
+#### 2. **Simple Request Lifecycle**
+
+With Loco, handling web requests is straightforward. Here's an example of a basic controller function that retrieves an item by its ID:
+
+```rust
+pub async fn get_one(
+    Format(respond_to): Format,
+    Path(id): Path<i32>,
+    State(ctx): State<AppContext>,
+) -> Result<Response> {
+    let res = items::Entity::find_by_id(id).one(&ctx.db).await?;
+    match res {
+        Ok(item) => respond_to_json_or_html(item, respond_to),
+        Err(err) => Err(err),
+    }
+}
+```
+
+#### 3. **Integrated Background Jobs**
+
+Loco includes support for background tasks, allowing developers to offload compute-heavy operations seamlessly. Implementing a worker is as simple as defining a `perform` function for the `Worker` trait:
+
+```rust
+impl worker::Worker<DownloadArgs> for DownloadWorker {
+    async fn perform(&self, args: DownloadArgs) -> worker::Result<()> {
+        // Your background processing logic here
+    }
+}
+```
+
+#### 4. **Deployment Made Easy**
+
+Deploying applications with Loco is streamlined through a guided CLI interface. Choose your preferred deployment method, such as Docker or Nginx, with just a few prompts.
+
+```bash
+cargo loco generate deployment
+```
+
+#### 5. **Built-in Authentication System**
+
+Loco comes with a complete authentication suite, including user registration and JWT-based authentication. This allows for secure user management out of the box.
+
+### Example User Registration
+
+To register a new user, send a POST request to the `/api/auth/register` endpoint:
+
+```bash
+curl --location '127.0.0.1:5150/api/auth/register' \
+     --header 'Content-Type: application/json' \
+     --data-raw '{ "name": "Loco user", "email": "user@loco.rs", "password": "12341234" }'
+```
+
+## Conclusion
+
+Loco.rs simplifies web development in Rust, allowing developers to focus on building robust applications without getting bogged down by complexity. With features like easy scaffolding, built-in authentication, and seamless deployment, Loco empowers developers to harness the full potential of Rust.
+
+For more information and detailed documentation, visit [Loco.rs](https://loco.rs/).
