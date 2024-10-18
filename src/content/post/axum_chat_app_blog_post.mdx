@@ -1,0 +1,133 @@
+---
+publishDate: 2024-10-18T00:00:00Z
+title: 'Understanding axum Responses and Custom Error Handling'
+excerpt: Dive into how axum handles responses with explicit status codes and learn about custom error handling with the ChatError system.
+tags:
+  - rust
+  - axum
+  - backend
+  - error-handling
+  - web-development
+---
+
+# Building Responses and Error Handling in Axum
+
+When working with Axum, a web framework built on top of Tower and Tokio, one of the fundamental aspects of building a robust API is the management of responses and error handling. This post will cover how to construct responses with explicit status codes, how Axum handles different response types, and how to implement a custom error handler... Because honestly, the docs and guides out there are pretty terrible.
+
+## Responses in Axum
+
+In Axum, you can return various types from your route handlers. The `IntoResponse` trait allows any type that implements it to be used as a response. Here are a few common return types:
+
+- **`Json<T>`**: Returns a JSON response with a content type of `application/json`. It will default to a status code of `200 OK` unless specified otherwise.
+- **`StatusCode`**: This can be used to return an empty response with a specific status code.
+- **Tuples**: You can return a tuple that includes a status code and a response body, which allows for greater flexibility.
+
+### Example of Implicit and Explicit Status Codes
+
+In Axum, some responses have implicit status codes while others require you to specify them explicitly.
+
+1. **Implicit Status Codes**:
+   When you return a `Json<T>`, the default status code is `200 OK`:
+
+   ```rust
+   async fn get_message() -> Json<MessageResponse> {
+       Json(MessageResponse {
+           uuid: uuid::Uuid::new_v4(),
+           text: "Hello, World!".to_string(),
+           sent_at: chrono::Utc::now(),
+       })
+   }
+   ```
+
+2. **Explicit Status Codes**:
+   For a `POST` request where a resource is created, it is common to return a `201 Created` status code:
+
+   ```rust
+   async fn post_message() -> (StatusCode, Json<MessageResponse>) {
+       let response = MessageResponse {
+           uuid: uuid::Uuid::new_v4(),
+           text: "Message created".to_string(),
+           sent_at: chrono::Utc::now(),
+       };
+       (StatusCode::CREATED, Json(response))
+   }
+   ```
+
+   This distinction is important for RESTful APIs, where the status code conveys meaningful information about the outcome of the request.
+
+You can also use `impl IntoResponse`, for something like this
+
+```rs
+ async fn post_message() -> impl IntoResponse {
+       let response = MessageResponse {
+           uuid: uuid::Uuid::new_v4(),
+           text: "Message created".to_string(),
+           sent_at: chrono::Utc::now(),
+       };
+       Ok((StatusCode::CREATED, Json(response)).into_response())
+   }
+```
+
+## Implementing a Custom Error Handler
+
+Error handling is crucial in building resilient applications. Axum allows you to define custom error types and handle them gracefully. Below, we’ll implement a custom error handler using your `ChatError` system.
+
+### Custom Error Enum
+
+First, define the `ChatError` enum:
+
+```rust
+use axum::{response::IntoResponse, Json};
+use http::StatusCode;
+
+#[derive(Debug)]
+pub enum ChatError {
+    NotFound,
+    InternalServerError,
+}
+
+impl IntoResponse for ChatError {
+    fn into_response(self) -> axum::response::Response {
+        match self {
+            ChatError::NotFound => {
+                (StatusCode::NOT_FOUND, Json("Resource not found".to_string())).into_response()
+            }
+            ChatError::InternalServerError => {
+                (StatusCode::INTERNAL_SERVER_ERROR, Json("Internal server error".to_string())).into_response()
+            }
+        }
+    }
+}
+```
+
+### Using the Custom Error Handler in Handlers
+
+You can now use `ChatError` in your handlers. Here's an example of a handler that might return a `ChatError`:
+
+```rust
+#[axum::debug_handler]
+pub async fn get_message() -> Result<Json<MessageResponse>, ChatError> {
+    // Simulate a condition to return an error
+    let found = false;
+
+    if !found {
+        return Err(ChatError::NotFound);
+    }
+
+    let response = MessageResponse {
+        uuid: uuid::Uuid::new_v4(),
+        text: "Hello, World!".to_string(),
+        sent_at: chrono::Utc::now(),
+    };
+
+    Ok(Json(response))
+}
+```
+
+In this example, if the message is not found, the handler returns a `ChatError::NotFound`, which will be transformed into a `404 Not Found` response.
+
+### Summary
+
+When building APIs with Axum, understanding how responses and error handling work is crucial for creating a reliable service. The ability to return explicit status codes allows you to convey more information to the client about the outcome of their requests. Implementing custom error types, like `ChatError`, gives you fine control over error responses and enhances the overall user experience of your API.
+
+Happy coding!
