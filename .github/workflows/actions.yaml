@@ -19,14 +19,17 @@ jobs:
           - 22
     steps:
       - uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 6.32.9
       - name: Use Node.js v${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
       - run: corepack enable
-      - run: corepack prepare pnpm@latest --activate
-      - run: pnpm install
+      - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       # - run: pnpm test
 
@@ -34,12 +37,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 6.32.9
       - name: Use Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: 'pnpm'
       - run: corepack enable
-      - run: corepack prepare pnpm@latest --activate
-      - run: pnpm install
+      - run: pnpm install --frozen-lockfile
       - run: pnpm run check
